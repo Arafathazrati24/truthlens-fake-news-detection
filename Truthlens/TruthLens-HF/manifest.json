@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "TruthLens — AI Fake News Detector",
+  "version": "1.0.0",
+  "description": "Detect fake news instantly using AI. Powered by SVM trained on 44,032 articles. MSc AI Project — Arafat Hazrati, London Metropolitan University.",
+
+  "permissions": [
+    "activeTab",
+    "contextMenus",
+    "storage",
+    "scripting"
+  ],
+
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "https://*/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16":  "icons/icon16.png",
+      "32":  "icons/icon32.png",
+      "48":  "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "TruthLens — Check this page"
+  },
+
+  "icons": {
+    "16":  "icons/icon16.png",
+    "32":  "icons/icon32.png",
+    "48":  "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

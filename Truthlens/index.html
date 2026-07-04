@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TruthLens — AI Fake News Detector</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── CSS Variables ───────────────────────────────────── */
+    :root {
+      --bg          : #09090f;
+      --bg2         : #10101a;
+      --bg3         : #18182a;
+      --bg4         : #1e1e30;
+      --border      : rgba(255,255,255,0.07);
+      --border2     : rgba(255,255,255,0.12);
+      --text        : #ececf4;
+      --text2       : #8888a8;
+      --text3       : #55556a;
+      --accent      : #7c6ff7;
+      --accent2     : #a89fff;
+      --accent-glow : rgba(124,111,247,0.25);
+      --real        : #22c55e;
+      --real-dim    : rgba(34,197,94,0.15);
+      --real-glow   : rgba(34,197,94,0.3);
+      --fake        : #f43f5e;
+      --fake-dim    : rgba(244,63,94,0.15);
+      --fake-glow   : rgba(244,63,94,0.3);
+      --warn        : #f59e0b;
+      --warn-dim    : rgba(245,158,11,0.15);
+      --grey        : #6b7280;
+      --grey-dim    : rgba(107,114,128,0.15);
+      --radius      : 18px;
+      --radius-sm   : 10px;
+      --shadow      : 0 24px 80px rgba(0,0,0,0.6);
+      --transition  : 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    /* ── Reset ───────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* ── Ambient Background ──────────────────────────────── */
+    .ambient {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .ambient-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+    }
+    .ambient-orb-1 {
+      width: 600px; height: 600px;
+      top: -200px; left: -200px;
+      background: radial-gradient(circle, rgba(124,111,247,0.2), transparent 70%);
+      animation: drift1 20s ease-in-out infinite alternate;
+    }
+    .ambient-orb-2 {
+      width: 500px; height: 500px;
+      bottom: -150px; right: -150px;
+      background: radial-gradient(circle, rgba(244,63,94,0.15), transparent 70%);
+      animation: drift2 25s ease-in-out infinite alternate;
+    }
+    .ambient-orb-3 {
+      width: 300px; height: 300px;
+      top: 40%; left: 60%;
+      background: radial-gradient(circle, rgba(34,197,94,0.1), transparent 70%);
+      animation: drift3 18s ease-in-out infinite alternate;
+    }
+
+    @keyframes drift1 { from { transform: translate(0,0); } to { transform: translate(80px, 60px); } }
+    @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-60px, -80px); } }
+    @keyframes drift3 { from { transform: translate(0,0); } to { transform: translate(-40px, 40px); } }
+
+    /* ── Layout ──────────────────────────────────────────── */
+    .container {
+      max-width: 880px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ──────────────────────────────────────────── */
+    header {
+      padding: 56px 0 48px;
+      text-align: center;
+    }
+
+    .logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+    .logo-name {
+      font-family: 'DM Serif Display', serif;
+      font-size: 24px;
+      color: var(--text);
+      letter-spacing: -0.5px;
+    }
+
+    .hero-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(38px, 5.5vw, 62px);
+      line-height: 1.08;
+      letter-spacing: -1.5px;
+      margin-bottom: 20px;
+    }
+    .hero-title .line-1 { display: block; color: var(--text); }
+    .hero-title .line-2 {
+      display: block;
+      background: linear-gradient(90deg, var(--accent) 0%, var(--accent2) 50%, var(--fake) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 17px;
+      color: var(--text2);
+      max-width: 520px;
+      margin: 0 auto 40px;
+      font-weight: 300;
+      line-height: 1.7;
+    }
+
+    /* ── Stats Bar ───────────────────────────────────────── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+      margin-bottom: 52px;
+      padding: 18px 32px;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text2);
+    }
+    .stat-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .stat-dot.green  { background: var(--real); box-shadow: 0 0 6px var(--real-glow); }
+    .stat-dot.purple { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+    .stat-dot.red    { background: var(--fake); box-shadow: 0 0 6px var(--fake-glow); }
+    .stat-val { color: var(--text); font-weight: 600; }
+
+    /* ── Main Card ───────────────────────────────────────── */
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      margin-bottom: 28px;
+    }
+
+    /* ── Tabs ─────────────────────────────────────────────── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+      padding: 6px 6px 0;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 12px 20px;
+      background: transparent;
+      border: none;
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 10px 10px 0 0;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--bg4); }
+    .tab-btn.active {
+      color: var(--text);
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-bottom: 1px solid var(--bg2);
+      margin-bottom: -1px;
+    }
+
+    /* ── Input Area ──────────────────────────────────────── */
+    .input-area {
+      padding: 28px;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .input-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text2);
+      margin-bottom: 10px;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 200px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      padding: 16px 18px;
+      resize: vertical;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    textarea::placeholder { color: var(--text3); }
+
+    .url-input-wrap {
+      display: flex;
+      gap: 10px;
+    }
+    .url-input {
+      flex: 1;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      padding: 14px 18px;
+      outline: none;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .url-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .url-input::placeholder { color: var(--text3); }
+
+    /* ── Word Counter ─────────────────────────────────────── */
+    .input-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .word-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text3);
+    }
+    .word-count.ok    { color: var(--real); }
+    .word-count.short { color: var(--warn); }
+
+    /* ── Analyse Button ──────────────────────────────────── */
+    .btn-analyse {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 16px 32px;
+      margin-top: 20px;
+      background: linear-gradient(135deg, var(--accent), #9b6fff);
+      border: none;
+      border-radius: var(--radius-sm);
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition), opacity var(--transition);
+      letter-spacing: 0.2px;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-analyse::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+    .btn-analyse:hover:not(:disabled)::after { opacity: 1; }
+    .btn-analyse:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 32px var(--accent-glow);
+    }
+    .btn-analyse:active:not(:disabled) { transform: translateY(0); }
+    .btn-analyse:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Spinner ─────────────────────────────────────────── */
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading .spinner { display: block; }
+    .loading .btn-icon { display: none; }
+    .loading .btn-text::after { content: 'ing...'; }
+
+    /* ── Error Banner ────────────────────────────────────── */
+    .error-banner {
+      display: none;
+      margin: 0 28px 20px;
+      padding: 14px 18px;
+      background: var(--fake-dim);
+      border: 1px solid rgba(244,63,94,0.2);
+      border-radius: var(--radius-sm);
+      color: var(--fake);
+      font-size: 14px;
+      align-items: center;
+      gap: 10px;
+    }
+    .error-banner.visible { display: flex; }
+
+    /* ── Result Section ──────────────────────────────────── */
+    #result-section {
+      display: none;
+      animation: slideUp 0.4s cubic-bezier(0.4,0,0.2,1) both;
+    }
+    #result-section.visible { display: block; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Verdict Card ────────────────────────────────────── */
+    .verdict-card {
+      margin: 0 28px 20px;
+      border-radius: var(--radius);
+      border: 1px solid;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+    .verdict-card.fake  { border-color: rgba(244,63,94,0.25); background: var(--fake-dim); }
+    .verdict-card.real  { border-color: rgba(34,197,94,0.25);  background: var(--real-dim); }
+    .verdict-card.warn  { border-color: rgba(245,158,11,0.25); background: var(--warn-dim); }
+    .verdict-card.grey  { border-color: rgba(107,114,128,0.25); background: var(--grey-dim); }
+
+    .verdict-header {
+      padding: 28px 28px 20px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .verdict-left { flex: 1; }
+
+    .verdict-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .verdict-badge.fake { background: rgba(244,63,94,0.15); color: var(--fake); border: 1px solid rgba(244,63,94,0.2); }
+    .verdict-badge.real { background: rgba(34,197,94,0.15);  color: var(--real); border: 1px solid rgba(34,197,94,0.2); }
+    .verdict-badge.warn { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.2); }
+    .verdict-badge.grey { background: rgba(107,114,128,0.15); color: var(--grey); border: 1px solid rgba(107,114,128,0.2); }
+
+    .badge-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      animation: pulse-dot 1.5s ease-in-out infinite;
+    }
+    .fake  .badge-dot { background: var(--fake); box-shadow: 0 0 6px var(--fake); }
+    .real  .badge-dot { background: var(--real); box-shadow: 0 0 6px var(--real); }
+    .warn  .badge-dot { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+    .grey  .badge-dot { background: var(--grey); }
+
+    @keyframes pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.3); opacity: 0.7; }
+    }
+
+    .verdict-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 38px);
+      line-height: 1.1;
+      letter-spacing: -0.5px;
+      margin-bottom: 10px;
+    }
+    .fake  .verdict-title { color: var(--fake); }
+    .real  .verdict-title { color: var(--real); }
+    .warn  .verdict-title { color: var(--warn); }
+    .grey  .verdict-title { color: var(--grey); }
+
+    .verdict-action {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.6;
+      max-width: 420px;
+    }
+
+    /* ── Confidence Ring ─────────────────────────────────── */
+    .confidence-ring-wrap {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .ring-container {
+      position: relative;
+      width: 100px;
+      height: 100px;
+    }
+    .ring-svg { transform: rotate(-90deg); }
+    .ring-bg {
+      fill: none;
+      stroke: var(--bg3);
+      stroke-width: 7;
+    }
+    .ring-fg {
+      fill: none;
+      stroke-width: 7;
+      stroke-linecap: round;
+      stroke-dasharray: 251.2;
+      stroke-dashoffset: 251.2;
+      transition: stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .ring-fg.fake { stroke: var(--fake); filter: drop-shadow(0 0 4px var(--fake)); }
+    .ring-fg.real { stroke: var(--real); filter: drop-shadow(0 0 4px var(--real)); }
+    .ring-fg.warn { stroke: var(--warn); filter: drop-shadow(0 0 4px var(--warn)); }
+    .ring-fg.grey { stroke: var(--grey); }
+
+    .ring-text {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      line-height: 1;
+    }
+    .ring-label {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .confidence-ring-wrap > .tier-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--text3);
+      text-align: center;
+    }
+
+    /* ── Meta Row ────────────────────────────────────────── */
+    .meta-row {
+      padding: 14px 28px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text3);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .meta-item span { color: var(--text2); }
+
+    /* ── LIME Words ──────────────────────────────────────── */
+    .words-section {
+      margin: 0 28px 20px;
+    }
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text3);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .section-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .words-grid {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .word-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 100px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid;
+      transition: transform var(--transition);
+      cursor: default;
+    }
+    .word-card:hover { transform: translateY(-1px); }
+    .word-card.fake {
+      background: var(--fake-dim);
+      border-color: rgba(244,63,94,0.2);
+      color: var(--fake);
+    }
+    .word-card.real {
+      background: var(--real-dim);
+      border-color: rgba(34,197,94,0.2);
+      color: var(--real);
+    }
+    .word-weight {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    .words-empty {
+      font-size: 14px;
+      color: var(--text3);
+      font-style: italic;
+    }
+
+    /* ── Metrics Grid ────────────────────────────────────── */
+    .metrics-section {
+      margin: 0 28px 28px;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .metric-box {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px 18px;
+    }
+    .metric-box-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text3);
+      margin-bottom: 6px;
+    }
+    .metric-box-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .metric-box-sub {
+      font-size: 12px;
+      color: var(--text3);
+      margin-top: 3px;
+    }
+
+    /* ── Feedback Row ────────────────────────────────────── */
+    .feedback-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 28px;
+      border-top: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .feedback-label {
+      font-size: 13px;
+      color: var(--text2);
+      flex: 1;
+    }
+    .feedback-btns {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-feedback {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 1px solid var(--border);
+      background: var(--bg4);
+      color: var(--text2);
+    }
+    .btn-feedback:hover { color: var(--text); border-color: var(--border2); }
+    .btn-feedback.correct:hover   { background: var(--real-dim); border-color: rgba(34,197,94,0.3); color: var(--real); }
+    .btn-feedback.incorrect:hover { background: var(--fake-dim); border-color: rgba(244,63,94,0.3); color: var(--fake); }
+    .btn-feedback.sent { opacity: 0.6; cursor: default; }
+    .feedback-thanks {
+      font-size: 13px;
+      color: var(--real);
+      display: none;
+      align-items: center;
+      gap: 6px;
+    }
+    .feedback-thanks.visible { display: flex; }
+
+    /* ── Try Again Button ────────────────────────────────── */
+    .btn-again {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 28px 28px;
+      padding: 12px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text2);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-again:hover { border-color: var(--border2); color: var(--text); background: var(--bg3); }
+
+    /* ── About / Info Section ────────────────────────────── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 48px;
+    }
+    .info-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      transition: border-color var(--transition);
+    }
+    .info-card:hover { border-color: var(--border2); }
+    .info-icon {
+      font-size: 24px;
+      margin-bottom: 14px;
+    }
+    .info-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .info-card p {
+      font-size: 14px;
+      color: var(--text2);
+      line-height: 1.7;
+    }
+
+    /* ── Confidence Tier Legend ──────────────────────────── */
+    .tier-legend {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 48px;
+    }
+    .tier-legend h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text2);
+      margin-bottom: 18px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tier-list { display: flex; flex-direction: column; gap: 10px; }
+    .tier-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      font-size: 14px;
+    }
+    .tier-icon { font-size: 18px; width: 24px; text-align: center; }
+    .tier-range {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text3);
+      min-width: 80px;
+    }
+    .tier-desc { color: var(--text2); }
+
+    /* ── Model Table ─────────────────────────────────────── */
+    .model-table-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 48px;
+    }
+    .model-table-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .model-table-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .model-table-header .best-badge {
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      background: var(--real-dim);
+      color: var(--real);
+      border: 1px solid rgba(34,197,94,0.2);
+      font-weight: 600;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    thead th {
+      padding: 12px 20px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text3);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    tbody tr {
+      border-bottom: 1px solid var(--border);
+      transition: background var(--transition);
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg3); }
+    tbody tr.highlight { background: rgba(34,197,94,0.05); }
+    tbody td {
+      padding: 14px 20px;
+      color: var(--text2);
+    }
+    tbody td:first-child { color: var(--text); font-weight: 500; }
+    .f1-bar-cell { width: 200px; }
+    .f1-bar-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .f1-bar {
+      flex: 1;
+      height: 4px;
+      background: var(--bg3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .f1-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      background: var(--accent);
+      transition: width 1s cubic-bezier(0.4,0,0.2,1);
+    }
+    tbody tr.highlight .f1-bar-fill { background: var(--real); }
+    .f1-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 600;
+      min-width: 44px;
+      text-align: right;
+    }
+    .deploy-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 100px;
+      background: var(--real-dim);
+      color: var(--real);
+      border: 1px solid rgba(34,197,94,0.2);
+    }
+
+    /* ── Footer ──────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0;
+      text-align: center;
+      color: var(--text3);
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    footer a {
+      color: var(--accent2);
+      text-decoration: none;
+    }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── API Status Dot ──────────────────────────────────── */
+    .api-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text3);
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 28px;
+    }
+    .api-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--grey);
+      transition: background 0.3s;
+    }
+    .api-dot.online  { background: var(--real); box-shadow: 0 0 6px var(--real-glow); animation: pulse-dot 2s infinite; }
+    .api-dot.offline { background: var(--fake); box-shadow: 0 0 6px var(--fake-glow); }
+
+    /* ── Responsive ──────────────────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 36px 0 32px; }
+      .stats-bar { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .verdict-header { flex-direction: column; }
+      .confidence-ring-wrap { flex-direction: row; align-items: center; }
+      .metrics-grid { grid-template-columns: 1fr 1fr; }
+      .words-grid { gap: 8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="ambient">
+    <div class="ambient-orb ambient-orb-1"></div>
+    <div class="ambient-orb ambient-orb-2"></div>
+    <div class="ambient-orb ambient-orb-3"></div>
+  </div>
+
+  <!-- ── Header ─────────────────────────────────────────── -->
+  <header>
+    <div class="container">
+
+      <div class="logo">
+        <div class="logo-mark">🔍</div>
+        <span class="logo-name">TruthLens</span>
+      </div>
+
+      <div class="api-status" id="api-status">
+        <div class="api-dot" id="api-dot"></div>
+        <span id="api-status-text">Checking API...</span>
+      </div>
+
+      <h1 class="hero-title">
+        <span class="line-1">Detect Fake News</span>
+        <span class="line-2">Powered by AI</span>
+      </h1>
+
+      <p class="hero-sub">
+        Submit any news article or URL. Our AI analyses the content using a Support Vector Machine trained on 44,000 articles and returns a confidence-scored verdict in milliseconds.
+      </p>
+
+      <div class="stats-bar">
+        <div class="stat-item">
+          <div class="stat-dot green"></div>
+          <span><span class="stat-val">99.48%</span> F1-Score</span>
+        </div>
+        <div class="stat-item">
+          <div class="stat-dot purple"></div>
+          <span><span class="stat-val">44,032</span> Training articles</span>
+        </div>
+        <div class="stat-item">
+          <div class="stat-dot red"></div>
+          <span><span class="stat-val">6</span> Models compared</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- ── Main ───────────────────────────────────────────── -->
+  <main>
+    <div class="container">
+
+      <!-- Input Card -->
+      <div class="card">
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button class="tab-btn active" data-tab="text" onclick="switchTab('text', this)">
+            <span>📝</span> Paste Text
+          </button>
+          <button class="tab-btn" data-tab="url" onclick="switchTab('url', this)">
+            <span>🔗</span> Enter URL
+          </button>
+        </div>
+
+        <!-- Text Tab -->
+        <div class="input-area">
+          <div class="tab-panel active" id="panel-text">
+            <label class="input-label" for="article-text">Article Content</label>
+            <textarea
+              id="article-text"
+              placeholder="Paste the full article text here — the more content you provide, the more accurate the analysis will be..."
+              oninput="updateWordCount()"
+            ></textarea>
+            <div class="input-footer">
+              <span class="word-count" id="word-count">0 words</span>
+              <span style="font-size:12px;color:var(--text3)">Minimum 10 words required</span>
+            </div>
+          </div>
+
+          <!-- URL Tab -->
+          <div class="tab-panel" id="panel-url">
+            <label class="input-label" for="article-url">Article URL</label>
+            <div class="url-input-wrap">
+              <input
+                type="url"
+                id="article-url"
+                class="url-input"
+                placeholder="https://example.com/news/article..."
+              />
+            </div>
+            <div class="input-footer">
+              <span style="font-size:12px;color:var(--text3)">The API will extract article text from the URL automatically</span>
+            </div>
+          </div>
+
+          <!-- Error Banner -->
+          <div class="error-banner" id="error-banner">
+            <span>⚠️</span>
+            <span id="error-text">Something went wrong.</span>
+          </div>
+
+          <!-- Analyse Button -->
+          <button class="btn-analyse" id="btn-analyse" onclick="analyse()">
+            <div class="spinner"></div>
+            <span class="btn-icon">✦</span>
+            <span class="btn-text">Analyse</span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- ── Result Section ──────────────────────────────── -->
+      <div id="result-section">
+
+        <!-- Verdict Card -->
+        <div class="verdict-card" id="verdict-card">
+          <div class="verdict-header">
+            <div class="verdict-left">
+              <div class="verdict-badge" id="verdict-badge">
+                <div class="badge-dot"></div>
+                <span id="badge-text">ANALYSING</span>
+              </div>
+              <div class="verdict-title" id="verdict-title">—</div>
+              <div class="verdict-action" id="verdict-action">—</div>
+            </div>
+            <div class="confidence-ring-wrap">
+              <div class="ring-container">
+                <svg class="ring-svg" width="100" height="100" viewBox="0 0 100 100">
+                  <circle class="ring-bg" cx="50" cy="50" r="40"/>
+                  <circle class="ring-fg" id="ring-fg" cx="50" cy="50" r="40"/>
+                </svg>
+                <div class="ring-text">
+                  <div class="ring-pct" id="ring-pct">—</div>
+                  <div class="ring-label">CONF</div>
+                </div>
+              </div>
+              <div class="tier-label" id="tier-label">—</div>
+            </div>
+          </div>
+          <div class="meta-row" id="meta-row">
+            <div class="meta-item">⚡ <span id="meta-speed">—</span> ms</div>
+            <div class="meta-item">📝 <span id="meta-words">—</span> words</div>
+            <div class="meta-item">🤖 <span id="meta-model">—</span></div>
+            <div class="meta-item">🔑 ID <span id="meta-id">—</span></div>
+          </div>
+        </div>
+
+        <!-- LIME Words -->
+        <div class="words-section" id="words-section" style="display:none">
+          <div class="section-title">Why this verdict?</div>
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+                🔴 Words pushing FAKE
+              </div>
+              <div class="words-grid" id="fake-words"></div>
+            </div>
+            <div>
+              <div style="font-size:12px;color:var(--text3);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">
+                🟢 Words pushing REAL
+              </div>
+              <div class="words-grid" id="real-words"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Metrics -->
+        <div class="metrics-section" id="metrics-section" style="display:none">
+          <div class="section-title">Confidence Breakdown</div>
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <div class="metric-box-label">Fake Probability</div>
+              <div class="metric-box-val" id="metric-fake">—</div>
+              <div class="metric-box-sub">Raw model output</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-box-label">Real Probability</div>
+              <div class="metric-box-val" id="metric-real">—</div>
+              <div class="metric-box-sub">Raw model output</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-box-label">Confidence Tier</div>
+              <div class="metric-box-val" id="metric-tier">—</div>
+              <div class="metric-box-sub">Decision threshold</div>
+            </div>
+            <div class="metric-box">
+              <div class="metric-box-label">Processing Speed</div>
+              <div class="metric-box-val" id="metric-speed">—</div>
+              <div class="metric-box-sub">End-to-end latency</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div class="card" id="feedback-card" style="margin-bottom:28px;">
+          <div class="feedback-row">
+            <div class="feedback-label">Was this verdict correct?</div>
+            <div class="feedback-btns" id="feedback-btns">
+              <button class="btn-feedback correct" onclick="sendFeedback(true)">
+                ✓ Correct
+              </button>
+              <button class="btn-feedback incorrect" onclick="sendFeedback(false)">
+                ✗ Incorrect
+              </button>
+            </div>
+            <div class="feedback-thanks" id="feedback-thanks">
+              ✓ Thanks for your feedback
+            </div>
+          </div>
+        </div>
+
+        <!-- Analyse Again -->
+        <button class="btn-again" onclick="resetForm()">
+          ↩ Analyse another article
+        </button>
+
+      </div>
+
+      <!-- ── Info Cards ──────────────────────────────────── -->
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="info-icon">🧠</div>
+          <h3>How It Works</h3>
+          <p>Articles are cleaned, stopwords removed, and lemmatised. TF-IDF converts text to 50,000-dimensional feature vectors. A Support Vector Machine classifies and returns a probability score.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">📊</div>
+          <h3>The Model</h3>
+          <p>Trained on the ISOT dataset — 44,032 real and fake news articles. Achieved 99.48% F1-score, outperforming BiLSTM and RoBERTa on this benchmark. Cross-tested on WELFake: 87.17%.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">🔍</div>
+          <h3>Explainability</h3>
+          <p>LIME (Local Interpretable Model-agnostic Explanations) identifies which specific words pushed the model towards its verdict, making every decision transparent and auditable.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-icon">⚠️</div>
+          <h3>Limitations</h3>
+          <p>Trained primarily on political and world news in English. Performance may vary on social media posts, opinion pieces, or content written very differently from traditional news journalism.</p>
+        </div>
+      </div>
+
+      <!-- ── Confidence Tier Legend ─────────────────────── -->
+      <div class="tier-legend">
+        <h3>Confidence Tiers</h3>
+        <div class="tier-list">
+          <div class="tier-row">
+            <div class="tier-icon">🔴</div>
+            <div class="tier-range">&gt; 85%</div>
+            <div class="tier-desc" style="color:var(--fake);font-weight:500;">HIGH CONFIDENCE</div>
+            <div class="tier-desc" style="margin-left:8px;color:var(--text2);">— Strong verdict. Do not share without verification.</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-icon">🟠</div>
+            <div class="tier-range">65 – 85%</div>
+            <div class="tier-desc" style="color:var(--warn);font-weight:500;">MEDIUM CONFIDENCE</div>
+            <div class="tier-desc" style="margin-left:8px;color:var(--text2);">— Probable verdict. Cross-checking recommended.</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-icon">🟡</div>
+            <div class="tier-range">55 – 65%</div>
+            <div class="tier-desc" style="font-weight:500;">LOW CONFIDENCE</div>
+            <div class="tier-desc" style="margin-left:8px;color:var(--text2);">— Weak signal. Multiple source verification needed.</div>
+          </div>
+          <div class="tier-row">
+            <div class="tier-icon">❓</div>
+            <div class="tier-range">&lt; 55%</div>
+            <div class="tier-desc" style="color:var(--grey);font-weight:500;">UNCERTAIN</div>
+            <div class="tier-desc" style="margin-left:8px;color:var(--text2);">— Cannot determine. Consult fact-checking organisations.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Model Comparison Table ─────────────────────── -->
+      <div class="model-table-wrap">
+        <div class="model-table-header">
+          <h3>Model Comparison — ISOT Benchmark</h3>
+          <span class="best-badge">✓ Deployed: SVM</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Category</th>
+              <th>Accuracy</th>
+              <th>AUC-ROC</th>
+              <th class="f1-bar-cell">F1-Score</th>
+              <th>Inference</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="highlight">
+              <td>Support Vector Machine <span class="deploy-chip">✓ deployed</span></td>
+              <td>Classical</td>
+              <td>99.46%</td>
+              <td>99.97%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:99.48%"></div></div>
+                  <div class="f1-val">99.48%</div>
+                </div>
+              </td>
+              <td>35.2 ms</td>
+            </tr>
+            <tr>
+              <td>BiLSTM + CNN</td>
+              <td>Deep Learning</td>
+              <td>99.32%</td>
+              <td>99.97%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:99.34%"></div></div>
+                  <div class="f1-val">99.34%</div>
+                </div>
+              </td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>RoBERTa</td>
+              <td>Transformer</td>
+              <td>99.05%</td>
+              <td>99.94%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:99.05%"></div></div>
+                  <div class="f1-val">99.05%</div>
+                </div>
+              </td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>Logistic Regression</td>
+              <td>Classical</td>
+              <td>98.97%</td>
+              <td>99.90%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:99.01%"></div></div>
+                  <div class="f1-val">99.01%</div>
+                </div>
+              </td>
+              <td>4.7 ms</td>
+            </tr>
+            <tr>
+              <td>Random Forest</td>
+              <td>Ensemble</td>
+              <td>98.97%</td>
+              <td>99.95%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:99.01%"></div></div>
+                  <div class="f1-val">99.01%</div>
+                </div>
+              </td>
+              <td>692 ms</td>
+            </tr>
+            <tr>
+              <td>Naive Bayes</td>
+              <td>Classical</td>
+              <td>96.61%</td>
+              <td>99.28%</td>
+              <td class="f1-bar-cell">
+                <div class="f1-bar-wrap">
+                  <div class="f1-bar"><div class="f1-bar-fill" style="width:96.75%"></div></div>
+                  <div class="f1-val">96.75%</div>
+                </div>
+              </td>
+              <td>9.8 ms</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- ── Footer ─────────────────────────────────────────── -->
+  <footer>
+    <div class="container">
+      <p>
+        <strong>TruthLens</strong> — MSc Artificial Intelligence Project<br/>
+        Arafat Hazrati &nbsp;|&nbsp; Student ID: 24015414 &nbsp;|&nbsp;
+        London Metropolitan University &nbsp;|&nbsp; 2024–2025<br/>
+        Supervisor: Professor Karim Ouazzane
+      </p>
+      <p style="margin-top:10px;">
+        This tool is a decision-support aid, not an authority on truth.
+        Always verify with trusted fact-checking organisations.
+      </p>
+    </div>
+  </footer>
+
+  <!-- ── JavaScript ─────────────────────────────────────── -->
+  <script>
+    // ── Configuration ───────────────────────────────────────
+    const API_URL   = 'http://localhost:8000';
+    const EXPLAIN   = true;  // Set false to skip LIME for speed
+
+    let currentPredictionId = null;
+    let currentTab = 'text';
+
+    // ── Tab Switching ───────────────────────────────────────
+    function switchTab(tab, btn) {
+      currentTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + tab).classList.add('active');
+      hideError();
+    }
+
+    // ── Word Counter ────────────────────────────────────────
+    function updateWordCount() {
+      const text  = document.getElementById('article-text').value.trim();
+      const words = text ? text.split(/\s+/).filter(w => w.length > 0).length : 0;
+      const el    = document.getElementById('word-count');
+      el.textContent = words + ' word' + (words !== 1 ? 's' : '');
+      el.className = 'word-count ' + (words >= 10 ? 'ok' : words > 0 ? 'short' : '');
+    }
+
+    // ── API Health Check ────────────────────────────────────
+    async function checkHealth() {
+      const dot  = document.getElementById('api-dot');
+      const text = document.getElementById('api-status-text');
+      try {
+        const r = await fetch(API_URL + '/health', {signal: AbortSignal.timeout(3000)});
+        if (r.ok) {
+          const data = await r.json();
+          dot.className = 'api-dot online';
+          text.textContent = 'API online · ' + (data.total_predictions || 0) + ' predictions';
+        } else {
+          throw new Error();
+        }
+      } catch {
+        dot.className = 'api-dot offline';
+        text.textContent = 'API offline — start the backend first';
+      }
+    }
+
+    // ── Show / Hide Error ───────────────────────────────────
+    function showError(msg) {
+      const el = document.getElementById('error-banner');
+      document.getElementById('error-text').textContent = msg;
+      el.classList.add('visible');
+    }
+    function hideError() {
+      document.getElementById('error-banner').classList.remove('visible');
+    }
+
+    // ── Set Loading State ───────────────────────────────────
+    function setLoading(loading) {
+      const btn = document.getElementById('btn-analyse');
+      if (loading) {
+        btn.classList.add('loading');
+        btn.disabled = true;
+      } else {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    // ── Main Analyse Function ───────────────────────────────
+    async function analyse() {
+      hideError();
+
+      // Get input
+      let text = '', url = '';
+      if (currentTab === 'text') {
+        text = document.getElementById('article-text').value.trim();
+        if (!text) { showError('Please paste some article text first.'); return; }
+        const wc = text.split(/\s+/).filter(w => w.length > 0).length;
+        if (wc < 10) { showError('Please provide at least 10 words for a reliable analysis.'); return; }
+      } else {
+        url = document.getElementById('article-url').value.trim();
+        if (!url) { showError('Please enter a URL.'); return; }
+        if (!url.startsWith('http')) { showError('Please enter a valid URL starting with http:// or https://'); return; }
+      }
+
+      setLoading(true);
+
+      try {
+        // ── Step 1: Get Prediction ────────────────────────
+        const body = currentTab === 'text' ? { text } : { url };
+        const res  = await fetch(API_URL + '/predict', {
+          method  : 'POST',
+          headers : { 'Content-Type': 'application/json' },
+          body    : JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || 'API returned an error. Please try again.');
+        }
+
+        const data = await res.json();
+        currentPredictionId = data.prediction_id;
+
+        // ── Step 2: Display Verdict ───────────────────────
+        displayVerdict(data);
+
+        // ── Step 3: Get LIME Explanation ──────────────────
+        if (EXPLAIN && currentTab === 'text' && text) {
+          getExplanation(text);
+        }
+
+      } catch (err) {
+        if (err.name === 'TypeError' && err.message.includes('fetch')) {
+          showError('Cannot connect to API. Make sure the backend is running: python3.10 main.py');
+        } else {
+          showError(err.message || 'Something went wrong. Please try again.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    // ── Display Verdict ─────────────────────────────────────
+    function displayVerdict(data) {
+      const isFake      = data.is_fake;
+      const tier        = data.tier;
+      const confidence  = data.confidence_pct;
+
+      // Determine colour class
+      let cls = 'grey';
+      if (tier === 'HIGH_CONFIDENCE')   cls = isFake ? 'fake' : 'real';
+      if (tier === 'MEDIUM_CONFIDENCE') cls = isFake ? 'fake' : 'real';
+      if (tier === 'LOW_CONFIDENCE')    cls = 'warn';
+      if (tier === 'UNCERTAIN')         cls = 'grey';
+
+      // Apply to verdict card
+      const card = document.getElementById('verdict-card');
+      card.className = 'verdict-card ' + cls;
+
+      // Badge
+      const badge = document.getElementById('verdict-badge');
+      badge.className = 'verdict-badge ' + cls;
+      document.getElementById('badge-text').textContent = tier.replace('_', ' ');
+
+      // Title
+      document.getElementById('verdict-title').textContent = data.verdict;
+
+      // Action
+      document.getElementById('verdict-action').textContent = data.action;
+
+      // Ring
+      const ringFg = document.getElementById('ring-fg');
+      ringFg.className = 'ring-fg ' + cls;
+      const circumference = 251.2;
+      const offset = circumference - (confidence / 100) * circumference;
+      setTimeout(() => { ringFg.style.strokeDashoffset = offset; }, 100);
+
+      // Ring text
+      document.getElementById('ring-pct').textContent = Math.round(confidence) + '%';
+      const pctEl = document.getElementById('ring-pct');
+      if (cls === 'fake') pctEl.style.color = 'var(--fake)';
+      else if (cls === 'real') pctEl.style.color = 'var(--real)';
+      else if (cls === 'warn') pctEl.style.color = 'var(--warn)';
+      else pctEl.style.color = 'var(--grey)';
+
+      // Tier label
+      document.getElementById('tier-label').textContent =
+        tier.replace('_CONFIDENCE', '').replace('_', ' ');
+
+      // Meta
+      document.getElementById('meta-speed').textContent = Math.round(data.processing_ms);
+      document.getElementById('meta-words').textContent = data.text_length_words;
+      document.getElementById('meta-model').textContent = data.model_used;
+      document.getElementById('meta-id').textContent = data.prediction_id;
+
+      // Metrics
+      document.getElementById('metric-fake').textContent =
+        (data.confidence_fake * 100).toFixed(2) + '%';
+      document.getElementById('metric-real').textContent =
+        (data.confidence_real * 100).toFixed(2) + '%';
+      document.getElementById('metric-tier').textContent =
+        tier.replace(/_/g, ' ');
+      document.getElementById('metric-speed').textContent =
+        Math.round(data.processing_ms) + ' ms';
+
+      // Show sections
+      document.getElementById('metrics-section').style.display = 'block';
+      document.getElementById('result-section').classList.add('visible');
+
+      // Reset feedback
+      document.getElementById('feedback-btns').style.display = 'flex';
+      document.getElementById('feedback-thanks').classList.remove('visible');
+      document.querySelectorAll('.btn-feedback').forEach(b => b.classList.remove('sent'));
+
+      // Scroll to result
+      setTimeout(() => {
+        document.getElementById('result-section').scrollIntoView({
+          behavior: 'smooth', block: 'start'
+        });
+      }, 100);
+    }
+
+    // ── Get LIME Explanation ────────────────────────────────
+    async function getExplanation(text) {
+      try {
+        const res = await fetch(API_URL + '/explain', {
+          method  : 'POST',
+          headers : { 'Content-Type': 'application/json' },
+          body    : JSON.stringify({ text })
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        displayWords(data);
+      } catch {
+        // Silently fail — explanation is optional
+      }
+    }
+
+    // ── Display LIME Words ──────────────────────────────────
+    function displayWords(data) {
+      const fakeEl = document.getElementById('fake-words');
+      const realEl = document.getElementById('real-words');
+
+      fakeEl.innerHTML = '';
+      realEl.innerHTML = '';
+
+      const fakeWords = data.top_fake_words || [];
+      const realWords = data.top_real_words || [];
+
+      if (fakeWords.length === 0 && realWords.length === 0) {
+        fakeEl.innerHTML = '<span class="words-empty">No significant words identified</span>';
+      }
+
+      fakeWords.forEach(w => {
+        const chip = document.createElement('div');
+        chip.className = 'word-card fake';
+        chip.innerHTML = `<span>${w.word}</span><span class="word-weight">+${w.weight}</span>`;
+        fakeEl.appendChild(chip);
+      });
+
+      realWords.forEach(w => {
+        const chip = document.createElement('div');
+        chip.className = 'word-card real';
+        chip.innerHTML = `<span>${w.word}</span><span class="word-weight">${w.weight}</span>`;
+        realEl.appendChild(chip);
+      });
+
+      document.getElementById('words-section').style.display = 'block';
+    }
+
+    // ── Send Feedback ───────────────────────────────────────
+    async function sendFeedback(correct) {
+      if (!currentPredictionId) return;
+
+      document.querySelectorAll('.btn-feedback').forEach(b => {
+        b.classList.add('sent');
+        b.disabled = true;
+      });
+
+      try {
+        await fetch(API_URL + '/feedback', {
+          method  : 'POST',
+          headers : { 'Content-Type': 'application/json' },
+          body    : JSON.stringify({
+            prediction_id : currentPredictionId,
+            correct       : correct
+          })
+        });
+      } catch { /* silently fail */ }
+
+      document.getElementById('feedback-btns').style.display = 'none';
+      document.getElementById('feedback-thanks').classList.add('visible');
+    }
+
+    // ── Reset Form ──────────────────────────────────────────
+    function resetForm() {
+      document.getElementById('article-text').value = '';
+      document.getElementById('article-url').value = '';
+      updateWordCount();
+      hideError();
+      document.getElementById('result-section').classList.remove('visible');
+      document.getElementById('words-section').style.display = 'none';
+      document.getElementById('metrics-section').style.display = 'none';
+
+      // Reset ring
+      const ringFg = document.getElementById('ring-fg');
+      ringFg.style.strokeDashoffset = '251.2';
+
+      currentPredictionId = null;
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── Enter Key Support ───────────────────────────────────
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.ctrlKey) { analyse(); }
+    });
+
+    // ── Init ────────────────────────────────────────────────
+    checkHealth();
+    setInterval(checkHealth, 30000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>TruthLens</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--bg:#0d0d18;--bg2:#13131f;--bg3:#1a1a2e;--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.15);--text:#ececf4;--text2:#8888a8;--text3:#55556a;--accent:#7c6ff7;--accent2:#a89fff;--real:#22c55e;--real-dim:rgba(34,197,94,0.12);--fake:#f43f5e;--fake-dim:rgba(244,63,94,0.12);--warn:#f59e0b;--warn-dim:rgba(245,158,11,0.12);--grey:#6b7280;--grey-dim:rgba(107,114,128,0.12);--r:10px;--t:0.18s cubic-bezier(0.4,0,0.2,1);}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);width:390px;min-height:220px;overflow-x:hidden;font-size:13px;}
+    .hd{display:flex;align-items:center;justify-content:space-between;padding:12px 15px 10px;border-bottom:1px solid var(--border);background:var(--bg2);}
+    .logo{display:flex;align-items:center;gap:9px;}
+    .lm{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+    .ln{font-size:14px;font-weight:600;letter-spacing:-0.2px;}
+    .ls{font-size:9px;color:var(--text3);}
+    .api-pill{display:flex;align-items:center;gap:5px;padding:4px 9px;border-radius:100px;border:1px solid var(--border);font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text3);cursor:pointer;transition:var(--t);}
+    .api-pill:hover{border-color:var(--border2);color:var(--text2);}
+    .api-dot{width:6px;height:6px;border-radius:50%;background:var(--grey);transition:background 0.3s;flex-shrink:0;}
+    .api-dot.on{background:var(--real);box-shadow:0 0 5px var(--real);animation:blink 2s ease-in-out infinite;}
+    .api-dot.off{background:var(--fake);}
+    @keyframes blink{0%,100%{opacity:1;}50%{opacity:0.45;}}
+    .tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);padding:5px 5px 0;gap:3px;}
+    .tab{flex:1;padding:7px 10px;background:transparent;border:none;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;cursor:pointer;border-radius:7px 7px 0 0;transition:var(--t);display:flex;align-items:center;justify-content:center;gap:4px;}
+    .tab:hover{color:var(--text2);background:var(--bg3);}
+    .tab.active{color:var(--text);background:var(--bg);border:1px solid var(--border);border-bottom:1px solid var(--bg);margin-bottom:-1px;}
+    .bd{padding:13px;}
+    .panel{display:none;}
+    .panel.active{display:block;}
+    .page-meta{font-size:10px;color:var(--text3);text-align:center;margin-bottom:10px;line-height:1.6;}
+    .page-url{color:var(--accent2);font-size:10px;word-break:break-all;margin-top:2px;}
+    .btn-scan{width:100%;padding:11px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:var(--t);display:flex;align-items:center;justify-content:center;gap:7px;}
+    .btn-scan:hover:not(:disabled){border-color:var(--border2);color:var(--text);}
+    .btn-scan:disabled{opacity:0.4;cursor:not-allowed;}
+    textarea{width:100%;height:105px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:'DM Sans',sans-serif;font-size:12px;line-height:1.65;padding:10px 12px;resize:none;outline:none;transition:border-color var(--t),box-shadow var(--t);margin-bottom:6px;}
+    textarea:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(124,111,247,0.18);}
+    textarea::placeholder{color:var(--text3);font-size:12px;}
+    .wc{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);text-align:right;margin-bottom:7px;}
+    .wc.ok{color:var(--real);}.wc.short{color:var(--warn);}
+    .btn-go{width:100%;padding:11px;background:linear-gradient(135deg,var(--accent),#9b6fff);border:none;border-radius:var(--r);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:var(--t);display:flex;align-items:center;justify-content:center;gap:7px;}
+    .btn-go:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 5px 18px rgba(124,111,247,0.32);}
+    .btn-go:disabled{opacity:0.45;cursor:not-allowed;}
+    .spin{width:13px;height:13px;border:2px solid rgba(255,255,255,0.25);border-top-color:#fff;border-radius:50%;animation:sp 0.65s linear infinite;display:none;flex-shrink:0;}
+    @keyframes sp{to{transform:rotate(360deg);}}
+    .loading .spin{display:block;}.loading .bi{display:none;}
+    .err{display:none;padding:9px 11px;margin-top:9px;background:var(--fake-dim);border:1px solid rgba(244,63,94,0.2);border-radius:8px;color:var(--fake);font-size:11px;line-height:1.55;gap:6px;align-items:flex-start;}
+    .err.show{display:flex;}
+    #res{display:none;margin-top:10px;animation:su 0.28s cubic-bezier(0.4,0,0.2,1) both;}
+    #res.show{display:block;}
+    @keyframes su{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+    .vbox{border-radius:var(--r);border:1px solid;overflow:hidden;margin-bottom:9px;}
+    .vbox.fake{border-color:rgba(244,63,94,0.25);background:var(--fake-dim);}
+    .vbox.real{border-color:rgba(34,197,94,0.25);background:var(--real-dim);}
+    .vbox.warn{border-color:rgba(245,158,11,0.25);background:var(--warn-dim);}
+    .vbox.grey{border-color:rgba(107,114,128,0.25);background:var(--grey-dim);}
+    .vmain{padding:13px 15px;display:flex;align-items:center;gap:13px;}
+    .mring{position:relative;width:62px;height:62px;flex-shrink:0;}
+    .mring svg{transform:rotate(-90deg);}
+    .rbg{fill:none;stroke:rgba(255,255,255,0.07);stroke-width:5;}
+    .rfg{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:157;stroke-dashoffset:157;transition:stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1);}
+    .rfg.fake{stroke:var(--fake);filter:drop-shadow(0 0 3px var(--fake));}
+    .rfg.real{stroke:var(--real);filter:drop-shadow(0 0 3px var(--real));}
+    .rfg.warn{stroke:var(--warn);filter:drop-shadow(0 0 3px var(--warn));}
+    .rfg.grey{stroke:var(--grey);}
+    .rc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+    .rp{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;line-height:1;}
+    .rl{font-size:7px;color:var(--text3);letter-spacing:0.3px;text-transform:uppercase;margin-top:1px;}
+    .vr{flex:1;min-width:0;}
+    .vtier{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;font-weight:600;margin-bottom:3px;}
+    .vtitle{font-size:19px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;line-height:1.1;}
+    .fake .vtitle{color:var(--fake);}.real .vtitle{color:var(--real);}.warn .vtitle{color:var(--warn);}.grey .vtitle{color:var(--grey);}
+    .vact{font-size:10px;color:var(--text2);line-height:1.55;}
+    .vmeta{padding:7px 15px;border-top:1px solid var(--border);display:flex;gap:12px;flex-wrap:wrap;}
+    .mi{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text3);display:flex;align-items:center;gap:3px;}
+    .mi span{color:var(--text2);}
+    .wsec{margin-bottom:9px;}
+    .wlabel{font-size:9px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text3);font-weight:600;margin-bottom:5px;}
+    .wrow{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px;}
+    .wchip{padding:3px 8px;border-radius:100px;font-size:10px;font-weight:500;border:1px solid;}
+    .wchip.fake{background:var(--fake-dim);border-color:rgba(244,63,94,0.2);color:var(--fake);}
+    .wchip.real{background:var(--real-dim);border-color:rgba(34,197,94,0.2);color:var(--real);}
+    .fbrow{display:flex;align-items:center;gap:7px;padding:9px 11px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;}
+    .fblabel{font-size:10px;color:var(--text3);flex:1;}
+    .bfb{padding:4px 9px;border-radius:6px;font-size:10px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;border:1px solid var(--border);background:var(--bg3);color:var(--text2);transition:var(--t);}
+    .bfb.cor:hover{background:var(--real-dim);border-color:rgba(34,197,94,0.3);color:var(--real);}
+    .bfb.inc:hover{background:var(--fake-dim);border-color:rgba(244,63,94,0.3);color:var(--fake);}
+    .fbthanks{font-size:10px;color:var(--real);display:none;}
+    .fbthanks.show{display:block;}
+    .bagain{width:100%;padding:8px;background:transparent;border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;cursor:pointer;transition:var(--t);display:flex;align-items:center;justify-content:center;gap:5px;}
+    .bagain:hover{border-color:var(--border2);color:var(--text);background:var(--bg3);}
+    .srow{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;border-radius:8px;transition:var(--t);}
+    .srow:hover{background:var(--bg3);}
+    .slabel{font-size:12px;color:var(--text);}.ssub{font-size:10px;color:var(--text3);margin-top:1px;}
+    .sval{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent2);background:var(--bg3);border:1px solid var(--border);border-radius:5px;padding:3px 8px;cursor:pointer;transition:var(--t);white-space:nowrap;}
+    .sval:hover{border-color:var(--accent);}
+    .sdiv{height:1px;background:var(--border);margin:3px 13px;}
+    .sfoot{padding:9px 13px 6px;font-size:9px;color:var(--text3);line-height:1.7;}
+  </style>
+</head>
+<body>
+<div class="hd">
+  <div class="logo">
+    <div class="lm">🔍</div>
+    <div><div class="ln">TruthLens</div><div class="ls">AI Fake News Detector</div></div>
+  </div>
+  <div class="api-pill" id="api-pill">
+    <div class="api-dot" id="api-dot"></div>
+    <span id="api-txt">checking...</span>
+  </div>
+</div>
+<div class="tabs">
+  <button class="tab active" id="tab-page">📰 This Page</button>
+  <button class="tab"        id="tab-text">✏️ Paste Text</button>
+  <button class="tab"        id="tab-cfg" >⚙️ Settings</button>
+</div>
+<div class="bd">
+  <div class="panel active" id="panel-page">
+    <div class="page-meta">Current page:<br/><div class="page-url" id="page-url">Loading...</div></div>
+    <button class="btn-scan" id="btn-scan"><span>🔍</span> Scan This Article</button>
+    <div class="err" id="err-page"><span>⚠</span><span id="err-page-txt"></span></div>
+  </div>
+  <div class="panel" id="panel-text">
+    <textarea id="ptxt" placeholder="Paste article text here to analyse..."></textarea>
+    <div class="wc" id="wc">0 words</div>
+    <button class="btn-go" id="btn-go"><div class="spin"></div><span class="bi">✦</span> Analyse</button>
+    <div class="err" id="err-text"><span>⚠</span><span id="err-text-txt"></span></div>
+  </div>
+  <div class="panel" id="panel-cfg">
+    <div style="padding:4px 0;">
+      <div class="srow"><div><div class="slabel">API Endpoint</div><div class="ssub">Backend server address</div></div><div class="sval" id="sapi">localhost</div></div>
+      <div class="sdiv"></div>
+      <div class="srow"><div><div class="slabel">LIME Explanations</div><div class="ssub">Show word reasoning</div></div><div class="sval" id="sexplain">ON</div></div>
+      <div class="sdiv"></div>
+      <div class="srow"><div><div class="slabel">Active Model</div><div class="ssub">Classification engine</div></div><div class="sval">SVM</div></div>
+      <div class="sdiv"></div>
+      <div class="sfoot">TruthLens v1.0.0 · MSc AI Project<br/>Arafat Hazrati · 24015414 · LMU 2024–2025<br/>F1: 99.48% · ISOT 44,032 articles</div>
+    </div>
+  </div>
+  <div id="res">
+    <div class="vbox" id="vbox">
+      <div class="vmain">
+        <div class="mring">
+          <svg width="62" height="62" viewBox="0 0 62 62">
+            <circle class="rbg" cx="31" cy="31" r="25"/>
+            <circle class="rfg" id="rfg" cx="31" cy="31" r="25"/>
+          </svg>
+          <div class="rc"><div class="rp" id="rpct">—</div><div class="rl">CONF</div></div>
+        </div>
+        <div class="vr">
+          <div class="vtier" id="vtier">—</div>
+          <div class="vtitle" id="vtitle">—</div>
+          <div class="vact" id="vact">—</div>
+        </div>
+      </div>
+      <div class="vmeta">
+        <div class="mi">⚡ <span id="mspd">—</span>ms</div>
+        <div class="mi">📝 <span id="mwds">—</span>w</div>
+        <div class="mi">🤖 SVM</div>
+        <div class="mi"># <span id="mid">—</span></div>
+      </div>
+    </div>
+    <div class="wsec" id="wsec" style="display:none;">
+      <div class="wlabel">🔴 Fake signals</div>
+      <div class="wrow" id="wfake"></div>
+      <div class="wlabel">🟢 Real signals</div>
+      <div class="wrow" id="wreal"></div>
+    </div>
+    <div class="fbrow">
+      <div class="fblabel">Was this correct?</div>
+      <div id="fbbtns" style="display:flex;gap:5px;">
+        <button class="bfb cor" id="btn-correct">✓ Yes</button>
+        <button class="bfb inc" id="btn-incorrect">✗ No</button>
+      </div>
+      <div class="fbthanks" id="fbthanks">✓ Thanks!</div>
+    </div>
+    <button class="bagain" id="btn-again">↩ Check another</button>
+  </div>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>
